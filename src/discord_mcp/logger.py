@@ -1,6 +1,5 @@
 import logging
 import sys
-from pathlib import Path
 
 
 def setup_logger(
@@ -16,7 +15,8 @@ def setup_logger(
         "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
     )
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    # CRITICAL: Use stderr instead of stdout to avoid corrupting MCP stdio protocol
+    console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)

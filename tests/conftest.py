@@ -20,15 +20,17 @@ def event_loop():
 @pytest.fixture
 def real_config():
     """Provide real Discord configuration from environment."""
+    token = os.getenv("DISCORD_TOKEN")
     email = os.getenv("DISCORD_EMAIL")
     password = os.getenv("DISCORD_PASSWORD")
 
-    if not email or not password:
+    if not token and not (email and password):
         pytest.skip(
-            "Discord credentials not available. Set DISCORD_EMAIL and DISCORD_PASSWORD environment variables."
+            "Discord credentials not available. Set DISCORD_TOKEN or both DISCORD_EMAIL and DISCORD_PASSWORD environment variables."
         )
 
     return DiscordConfig(
+        token=token,
         email=email,
         password=password,
         headless=True,  # Use headless for testing in CI environment

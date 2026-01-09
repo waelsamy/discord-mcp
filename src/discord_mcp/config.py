@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 
 
 class DiscordConfig(tp.NamedTuple):
-    email: str
-    password: str
+    token: str | None
+    email: str | None
+    password: str | None
     headless: bool
     default_guild_ids: list[str]
     max_messages_per_channel: int
@@ -18,13 +19,18 @@ def load_config() -> DiscordConfig:
     if env_file.exists():
         load_dotenv(env_file)
 
-    email = os.getenv("DISCORD_EMAIL")
-    if not email:
-        raise ValueError("DISCORD_EMAIL environment variable is required")
+    # Token takes priority - if provided, email/password are optional
+    token = os.getenv("DISCORD_TOKEN")
 
+    # Email and password are only required if token is not provided
+    email = os.getenv("DISCORD_EMAIL")
     password = os.getenv("DISCORD_PASSWORD")
-    if not password:
-        raise ValueError("DISCORD_PASSWORD environment variable is required")
+
+    if not token and not (email and password):
+        raise ValueError(
+            "Either DISCORD_TOKEN or both DISCORD_EMAIL and DISCORD_PASSWORD "
+            "environment variables are required"
+        )
 
     headless = os.getenv("DISCORD_HEADLESS", "true").lower() == "true"
 
@@ -35,6 +41,7 @@ def load_config() -> DiscordConfig:
     hours_back = int(os.getenv("DEFAULT_HOURS_BACK", "24"))
 
     return DiscordConfig(
+        token=token,
         email=email,
         password=password,
         headless=headless,
