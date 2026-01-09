@@ -1,4 +1,5 @@
 import asyncio
+import pathlib as pl
 import typing as tp
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator, Callable
@@ -23,7 +24,20 @@ from .messages import read_recent_messages, read_recent_dm_messages
 class DiscordContext:
     config: tp.Any
     client_lock: asyncio.Lock
-    token: str  # Extracted/loaded token available to all tools
+    token: (
+        str | None
+    )  # Extracted/loaded token available to all tools (None = extract on first call)
+
+
+def _save_token_to_file_sync(token: str, token_file: pl.Path) -> None:
+    """Save token to file with secure permissions (synchronous)."""
+    try:
+        token_file.parent.mkdir(parents=True, exist_ok=True)
+        token_file.write_text(token)
+        token_file.chmod(0o600)
+        logger.debug(f"Token cached to {token_file}")
+    except Exception as e:
+        logger.warning(f"Failed to cache token: {e}")
 
 
 @asynccontextmanager
@@ -31,9 +45,6 @@ async def discord_lifespan(server: FastMCP) -> AsyncIterator[DiscordContext]:
     config = load_config()
     client_lock = asyncio.Lock()
     logger.info("Discord MCP server starting up")
-
-    # Load token on startup so it's ready for all tools
-    import pathlib as pl
 
     # Determine which token to use (priority order)
     token = None
@@ -44,13 +55,7 @@ async def discord_lifespan(server: FastMCP) -> AsyncIterator[DiscordContext]:
         logger.debug("Using token from DISCORD_TOKEN environment variable")
         token = config.token
         # Save to cache for future use
-        try:
-            token_file.parent.mkdir(parents=True, exist_ok=True)
-            token_file.write_text(token)
-            token_file.chmod(0o600)
-            logger.debug(f"Token cached to {token_file}")
-        except Exception as e:
-            logger.warning(f"Failed to cache token: {e}")
+        _save_token_to_file_sync(token, token_file)
 
     # Priority 2: Load from cached token file
     elif token_file.exists():
@@ -63,15 +68,13 @@ async def discord_lifespan(server: FastMCP) -> AsyncIterator[DiscordContext]:
         except Exception as e:
             logger.warning(f"Failed to load token from file: {e}")
 
-    # Priority 3: No token available - fail with helpful message
+    # Priority 3: Leave as None - will extract on first tool call
     if not token:
-        raise RuntimeError(
-            "No Discord token available. Please run 'uv run python get_token.py' "
-            f"to extract your token, or set DISCORD_TOKEN environment variable. "
-            f"Token will be cached at {token_file}"
+        logger.info(
+            "No cached token found - will extract on first tool call if email/password provided"
         )
 
-    logger.info("Token successfully loaded and ready for all tools")
+    logger.info("Server startup complete - ready for tool calls")
 
     try:
         yield DiscordContext(config=config, client_lock=client_lock, token=token)
@@ -83,9 +86,9 @@ async def _execute_with_fresh_client[T](
     discord_ctx: DiscordContext,
     operation: Callable[[tp.Any], tp.Awaitable[tuple[tp.Any, T]]],
 ) -> T:
-    """Execute Discord operation with fresh client state using pre-loaded token"""
-    async with discord_ctx.client_lock:
-        # Use the token that was extracted/loaded during server startup
+    """Execute Discord operation with fresh client state, extracting token if needed"""
+    async with discord_ctx.client_lock:  # Serializes - only one tool runs at a time
+        # Create client state with potentially None token
         client_state = create_api_client_state(
             token=discord_ctx.token,
             email=discord_ctx.config.email,
@@ -93,7 +96,15 @@ async def _execute_with_fresh_client[T](
             headless=True,
         )
         try:
-            _, result = await operation(client_state)
+            # This calls _ensure_http_client() which calls _load_or_refresh_token()
+            # That function will extract token if needed using existing logic
+            client_state, result = await operation(client_state)
+
+            # If token was extracted, update context for future calls
+            if client_state.token and not discord_ctx.token:
+                discord_ctx.token = client_state.token
+                logger.info("Token extracted and cached for future tool calls")
+
             return result
         finally:
             logger.debug("Cleaning up API client resources")

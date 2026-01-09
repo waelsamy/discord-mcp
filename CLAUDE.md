@@ -85,29 +85,40 @@ Example workflow:
 
 ## Server Startup & Token Management
 
-The MCP server loads tokens at startup for fast, reliable operation:
+The MCP server uses **lazy token extraction** for instant startup while supporting automatic authentication:
 
-1. **Startup Token Loading**: When the server starts, it:
+1. **Instant Server Startup**: When the server starts, it:
    - Loads token from `DISCORD_TOKEN` env var (if provided) → saves to cache
    - Falls back to cached token at `~/.discord_mcp_token`
-   - Fails fast with helpful error if no token available
+   - **Starts instantly even if no token found** (extracts on first tool call)
 
-2. **Token Extraction** (One-time setup):
-   - Run `uv run python get_token.py` to extract your token interactively
-   - Token is automatically saved to `~/.discord_mcp_token` (0o600 permissions)
+2. **Lazy Token Extraction** (Automatic on first tool call):
+   - If email/password provided but no token cached
+   - First tool call triggers headless browser extraction (10-15 seconds)
+   - Token automatically saved to `~/.discord_mcp_token` (0o600 permissions)
+   - All subsequent tool calls use cached token (instant)
+
+3. **Manual Token Extraction** (For MFA/2FA accounts):
+   - Run `uv run python get_token.py` to extract interactively
+   - Token is automatically saved and used by server
    - Or manually set `DISCORD_TOKEN` in your `.env` file
 
-3. **Shared Token Context**: The loaded token is stored in `DiscordContext` and shared across all MCP tools:
+4. **Shared Token Context**: Token stored in `DiscordContext` and shared across all MCP tools:
    - No repeated authentication per tool call
-   - Fast tool execution (no browser launch overhead)
-   - Single token load per server session
+   - Fast tool execution after initial extraction
+   - Single token for entire server session
 
-4. **Token Priority**:
+5. **Token Priority**:
    - Priority 1: `DISCORD_TOKEN` environment variable → saves to cache
    - Priority 2: Cached token from `~/.discord_mcp_token`
-   - Priority 3: Error with instructions to run `get_token.py`
+   - Priority 3: Extract on first tool call (if email/password provided)
+   - Priority 4: Error with instructions to run `get_token.py`
 
-**Important**: The server does NOT extract tokens during startup. This ensures fast, predictable startup times. Token extraction must be done separately using `get_token.py`.
+**Key Benefits**:
+
+- **Instant startup**: Server starts in <1 second even without cached token
+- **Automatic extraction**: Headless browser extraction on first tool call (non-MFA accounts)
+- **No hanging**: MFA/extraction errors occur during tool call, not at startup
 
 ## Test Strategy & Reliability
 
@@ -115,7 +126,8 @@ The implementation prioritizes **reliability over speed** through:
 
 ### Token & State Management
 
-- Token loaded once at server startup (not extracted - must pre-exist)
+- Token loaded at server startup if available (env var or cached file)
+- Lazy extraction on first tool call if email/password provided
 - Token shared across all tools via `DiscordContext`
 - Async lock serialization to prevent race conditions
 - Secure token storage at `~/.discord_mcp_token` with 0o600 permissions

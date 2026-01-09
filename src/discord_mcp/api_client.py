@@ -231,7 +231,10 @@ async def _load_or_refresh_token(state: APIClientState) -> tuple[APIClientState,
     # Priority 3: Extract via headless browser (NEW!)
     if state.email and state.password and state.headless:
         try:
-            logger.info("Extracting token via headless browser...")
+            logger.info(
+                f"Extracting token via headless browser... "
+                f"(email={state.email}, headless={state.headless})"
+            )
             from .token_extractor import extract_token_headless
 
             token = await extract_token_headless(
@@ -243,8 +246,10 @@ async def _load_or_refresh_token(state: APIClientState) -> tuple[APIClientState,
             return dc.replace(state, token=token), token
 
         except Exception as e:
-            logger.warning(f"Headless browser extraction failed: {e}")
-            logger.info("No automated extraction methods remaining")
+            logger.error(f"Headless browser extraction failed: {e}")
+            import traceback
+
+            logger.error(f"Traceback: {traceback.format_exc()}")
             # Fall through to Priority 4 error
 
     # Priority 4: No more fallbacks - require manual token extraction
