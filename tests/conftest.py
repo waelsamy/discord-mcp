@@ -1,9 +1,9 @@
-import pytest
-import pytest_asyncio
 import asyncio
 import os
+
+import pytest
 from dotenv import load_dotenv
-from src.discord_mcp.client import create_client_state, close_client
+
 from src.discord_mcp.config import DiscordConfig
 
 load_dotenv()
@@ -38,21 +38,6 @@ def real_config():
         max_messages_per_channel=50,
         default_hours_back=24,
     )
-
-
-@pytest_asyncio.fixture
-async def discord_client(real_config):
-    """Provide a real Discord client for integration testing."""
-    client_state = create_client_state(
-        email=real_config.email,
-        password=real_config.password,
-        headless=real_config.headless,
-    )
-
-    yield client_state
-
-    # Cleanup
-    await close_client(client_state)
 
 
 @pytest.fixture(autouse=True)

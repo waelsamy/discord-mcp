@@ -22,7 +22,6 @@ This implementation uses **Discord HTTP API** for reliable, fast access:
 - Uses Discord's official API for reading messages and managing servers
 - Token-based authentication (no bot permissions needed)
 - Automatic headless browser token extraction for ease of setup
-- Fallback to API-based login if browser extraction fails
 
 ## Package Management
 - Use `uv` package manager for all operations
@@ -38,9 +37,8 @@ This implementation uses **Discord HTTP API** for reliable, fast access:
 
 - **`main.py`** - Entry point that starts the MCP server
 - **`src/discord_mcp/server.py`** - FastMCP server with 7 tool definitions
-- **`src/discord_mcp/api_client.py`** - HTTP-based Discord client using Discord API (primary)
-- **`src/discord_mcp/token_extractor.py`** - Headless browser token extraction (NEW!)
-- **`src/discord_mcp/client.py`** - Legacy Playwright-based Discord client (not used by server)
+- **`src/discord_mcp/api_client.py`** - HTTP-based Discord client using Discord API
+- **`src/discord_mcp/token_extractor.py`** - Headless browser token extraction
 - **`src/discord_mcp/config.py`** - Configuration management for Discord credentials
 - **`src/discord_mcp/messages.py`** - Message reading and time filtering logic
 - **`src/discord_mcp/logger.py`** - Logging configuration (CRITICAL: uses stderr to avoid corrupting MCP stdio protocol)
