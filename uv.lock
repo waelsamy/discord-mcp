@@ -82,7 +82,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "mcp", specifier = ">=1.9.3" },
+    { name = "mcp", specifier = ">=1.9.3,<2" },
     { name = "playwright", specifier = ">=1.52.0" },
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
