@@ -41,7 +41,7 @@ async def test_mcp_get_servers_tool(real_config):
             assert result.content, "No content in result"
 
             # Check if this is an error response
-            if result.isError:
+            if result.is_error:
                 text_content = result.content[0] if result.content else None
                 error_text = text_content.text if text_content else "Unknown error"
                 print(f"Error in tool response: {error_text}")
@@ -95,7 +95,7 @@ async def test_mcp_get_channels_tool(real_config):
             assert hasattr(result, "content")
             assert result.content, "No content in result"
 
-            if result.isError:
+            if result.is_error:
                 text_content = result.content[0] if result.content else None
                 error_text = text_content.text if text_content else "Unknown error"
                 print(f"Error in tool response: {error_text}")
@@ -159,7 +159,7 @@ async def test_mcp_send_message_tool(real_config):
             assert hasattr(result, "content")
             assert result.content, "No content in result"
 
-            if result.isError:
+            if result.is_error:
                 text_content = result.content[0] if result.content else None
                 error_text = text_content.text if text_content else "Unknown error"
                 print(f"Error in tool response: {error_text}")
@@ -218,7 +218,7 @@ async def test_mcp_read_messages_tool(real_config):
             )
             assert hasattr(result, "content")
 
-            if result.isError:
+            if result.is_error:
                 text_content = result.content[0] if result.content else None
                 error_text = text_content.text if text_content else "Unknown error"
                 print(f"Error in tool response: {error_text}")
@@ -278,7 +278,7 @@ async def test_mcp_get_dm_conversations_tool(real_config):
             assert hasattr(result, "content")
             assert result.content, "No content in result"
 
-            if result.isError:
+            if result.is_error:
                 text_content = result.content[0] if result.content else None
                 error_text = text_content.text if text_content else "Unknown error"
                 raise Exception(f"Tool failed: {error_text[:200]}")
@@ -319,7 +319,7 @@ async def test_mcp_read_dm_messages_by_name_tool(real_config):
 
             # First, get available conversations
             convs_result = await session.call_tool("get_dm_conversations", {})
-            if convs_result.isError or not convs_result.content:
+            if convs_result.is_error or not convs_result.content:
                 pytest.skip("No DM conversations available for testing")
 
             import json
@@ -348,7 +348,7 @@ async def test_mcp_read_dm_messages_by_name_tool(real_config):
 
             assert hasattr(result, "content")
 
-            if result.isError:
+            if result.is_error:
                 text_content = result.content[0] if result.content else None
                 error_text = text_content.text if text_content else "Unknown error"
                 # May have no messages, which is acceptable
@@ -400,7 +400,7 @@ async def test_dm_name_not_found_error(real_config):
                 },
             )
 
-            assert result.isError, "Expected error for non-existent DM name"
+            assert result.is_error, "Expected error for non-existent DM name"
             text_content = result.content[0] if result.content else None
             error_text = text_content.text if text_content else ""
             assert "No DM conversation found" in error_text
@@ -460,7 +460,7 @@ async def test_mcp_send_message_with_attachment_tool(real_config):
                 assert hasattr(result, "content")
                 assert result.content, "No content in result"
 
-                if result.isError:
+                if result.is_error:
                     text_content = result.content[0] if result.content else None
                     error_text = text_content.text if text_content else "Unknown error"
                     print(f"Error in tool response: {error_text}")
@@ -521,7 +521,7 @@ async def test_mcp_send_message_with_attachment_file_not_found(real_config):
                 },
             )
 
-            assert result.isError, "Expected error for non-existent file"
+            assert result.is_error, "Expected error for non-existent file"
             text_content = result.content[0] if result.content else None
             error_text = text_content.text if text_content else ""
             assert (

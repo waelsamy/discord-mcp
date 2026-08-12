@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import Context, MCPServer
 from .logger import logger
 from .api_client import (
     create_api_client_state,
@@ -41,7 +41,7 @@ def _save_token_to_file_sync(token: str, token_file: pl.Path) -> None:
 
 
 @asynccontextmanager
-async def discord_lifespan(server: FastMCP) -> AsyncIterator[DiscordContext]:
+async def discord_lifespan(server: MCPServer) -> AsyncIterator[DiscordContext]:
     config = load_config()
     client_lock = asyncio.Lock()
     logger.info("Discord MCP server starting up")
@@ -111,13 +111,12 @@ async def _execute_with_fresh_client[T](
             await close_api_client(client_state)
 
 
-mcp = FastMCP("discord-mcp", lifespan=discord_lifespan)
+mcp = MCPServer("discord-mcp", lifespan=discord_lifespan)
 
 
 @mcp.tool()
-async def get_servers() -> list[dict[str, str]]:
+async def get_servers(*, ctx: Context) -> list[dict[str, str]]:
     """List all Discord servers (guilds) you have access to"""
-    ctx = mcp.get_context()
     discord_ctx = tp.cast(DiscordContext, ctx.request_context.lifespan_context)
 
     guilds = await _execute_with_fresh_client(discord_ctx, get_guilds)
@@ -138,9 +137,8 @@ async def get_servers() -> list[dict[str, str]]:
 
 
 @mcp.tool()
-async def get_channels(server_id: str) -> list[dict[str, str]]:
+async def get_channels(server_id: str, *, ctx: Context) -> list[dict[str, str]]:
     """List all channels in a specific Discord server"""
-    ctx = mcp.get_context()
     discord_ctx = tp.cast(DiscordContext, ctx.request_context.lifespan_context)
 
     async def operation(state):
@@ -152,7 +150,12 @@ async def get_channels(server_id: str) -> list[dict[str, str]]:
 
 @mcp.tool()
 async def read_messages(
-    server_id: str, channel_id: str, max_messages: int, hours_back: int | None = None
+    server_id: str,
+    channel_id: str,
+    max_messages: int,
+    hours_back: int | None = None,
+    *,
+    ctx: Context,
 ) -> list[dict[str, tp.Any]]:
     """Read recent messages from a specific channel"""
     if hours_back is not None and not (1 <= hours_back <= 8760):
@@ -160,7 +163,6 @@ async def read_messages(
     if not (1 <= max_messages <= 1000):
         raise ValueError("max_messages must be between 1 and 1000")
 
-    ctx = mcp.get_context()
     discord_ctx = tp.cast(DiscordContext, ctx.request_context.lifespan_context)
 
     async def operation(state):
@@ -187,7 +189,7 @@ async def read_messages(
 
 @mcp.tool()
 async def send_message(
-    server_id: str, channel_id: str, content: str
+    server_id: str, channel_id: str, content: str, *, ctx: Context
 ) -> dict[str, tp.Any]:
     """Send a message to a specific Discord channel. Long messages are automatically split."""
     if len(content) == 0:
@@ -244,7 +246,6 @@ async def send_message(
         if current_chunk:
             chunks.append(current_chunk)
 
-    ctx = mcp.get_context()
     discord_ctx = tp.cast(DiscordContext, ctx.request_context.lifespan_context)
 
     message_ids = []
@@ -275,6 +276,8 @@ async def send_message_with_attachment(
     content: str,
     file_path: str,
     filename: str | None = None,
+    *,
+    ctx: Context,
 ) -> dict[str, tp.Any]:
     """Send a message with a file attachment to a Discord channel.
 
@@ -316,7 +319,6 @@ async def send_message_with_attachment(
     file_size = file.stat().st_size if file.exists() else 0
     actual_filename = filename if filename else file.name
 
-    ctx = mcp.get_context()
     discord_ctx = tp.cast(DiscordContext, ctx.request_context.lifespan_context)
 
     async def operation(state):
@@ -387,7 +389,7 @@ def _find_conversation_matches(
 
 
 @mcp.tool()
-async def get_dm_conversations() -> list[dict[str, tp.Any]]:
+async def get_dm_conversations(*, ctx: Context) -> list[dict[str, tp.Any]]:
     """List all direct message conversations (1-on-1 and group DMs) with all available attributes.
 
     Returns:
@@ -400,7 +402,6 @@ async def get_dm_conversations() -> list[dict[str, tp.Any]]:
         - last_message_timestamp: ISO format timestamp of last message
         - avatar_url: Avatar URL if available
     """
-    ctx = mcp.get_context()
     discord_ctx = tp.cast(DiscordContext, ctx.request_context.lifespan_context)
 
     async def operation(state):
@@ -425,7 +426,7 @@ async def get_dm_conversations() -> list[dict[str, tp.Any]]:
 
 @mcp.tool()
 async def read_dm_messages(
-    name: str, max_messages: int, hours_back: int | None = None
+    name: str, max_messages: int, hours_back: int | None = None, *, ctx: Context
 ) -> list[dict[str, tp.Any]]:
     """Read recent messages from a DM conversation by username or display name.
 
@@ -456,7 +457,6 @@ async def read_dm_messages(
     if not name or not name.strip():
         raise ValueError("name cannot be empty")
 
-    ctx = mcp.get_context()
     discord_ctx = tp.cast(DiscordContext, ctx.request_context.lifespan_context)
 
     # Step 1: Get all DM conversations
